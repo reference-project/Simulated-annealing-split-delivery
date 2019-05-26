@@ -1,106 +1,129 @@
-import random
 import copy
-from annealing import random_generator
-from annealing import data_manager
+from annealing import random_generator, data_manager
 import math
 
+cap1 = 0
+cap2 = 0
 
-class SplitDelivery:
-    generator = random_generator.RandomGenerator()
-    manager = data_manager.DataManager()
 
-    @staticmethod
-    def how_many_changes(array):
-        arr_len = 0
-        for elements in array:
-            arr_len += len(elements)
-        return math.ceil(0.1 * arr_len)
+def calculate_capacity_sum(arr):
+    last_val_idx = len(arr[0]) - 1
+    return sum(data_manager.get_column_from_2d(arr, last_val_idx))
 
-    @staticmethod
-    def swap_arr_values(arr, idx1, idx2, idx_lst_1, idx_lst_2):
-        arr[idx1][idx_lst_1], arr[idx2][idx_lst_2] = arr[idx2][idx_lst_2], arr[idx1][idx_lst_1]
-        return arr
 
-    def calculate_capacity_sum(self, arr):
-        sum1 = 0
-        cap_idx = len(arr[0]) - 1
-        for element in arr:
-            sum1 += element[cap_idx]
-        # capacities_arr = self.manager.get_column_from_2d(arr, cap_idx)
-        return sum1
+def can_be_swapped(array1, array2, capacity):
+    global cap1, cap2
+    cap1 = calculate_capacity_sum(array1)
+    cap2 = calculate_capacity_sum(array2)
+    if cap1 < capacity or cap2 < capacity:
+        return True
+    return False
 
-    def is_switchable(self, arr, idx1, idx2, idx_lst_1, idx_lst_2, capacity):
-        arr_cp = self.swap_arr_values(arr, idx1, idx2, idx_lst_1, idx_lst_2)
-        if self.calculate_capacity_sum(arr_cp[idx1]) <= capacity:
-            if self.calculate_capacity_sum(arr_cp[idx2]) <= capacity:
-                return arr_cp
-        return False
 
-    def change_values(self, array_list, capacity):
-        can_swap = False
-        tries = 0
-        array_list_cp = copy.deepcopy(array_list)
-        while can_swap is False:
-            rand_idx = self.generator.get_random_index(array_list_cp)
-            random_list_idx = self.generator.get_random_index(array_list_cp[rand_idx])
-            rand_idx2 = self.generator.get_random_index(array_list_cp)
-            while rand_idx2 == rand_idx:
-                rand_idx2 = self.generator.get_random_index(array_list_cp)
-            random_list_idx2 = self.generator.get_random_index(array_list_cp[rand_idx2])
-            can_swap = self.is_switchable(array_list_cp, rand_idx, rand_idx2, random_list_idx, random_list_idx2, capacity)
-            if not can_swap:
-                tries += 1
-                can_swap = array_list
-            if tries == 3:
-                return array_list_cp
-        return can_swap
+def change_index(idx1, idx2):
+    if idx1 < idx2:
+        return idx2 - 1
+    return idx2
 
-    def shift_value(self, array_list, idx1, idx2, idx_of_idx1):
-        item = array_list[idx1][idx_of_idx1]
-        array_list[idx1].remove(item)
-        array_list[idx2].append(item)
-        if len(array_list[idx1]) == 0:
-            del array_list[idx1]
-        return array_list
 
-    def is_addable(self, array_list, idx1, idx2, idx_of_idx1, capacity):
-        array = copy.deepcopy(array_list)
-        some_array = self.shift_value(array, idx1, idx2, idx_of_idx1)
-        if len(array_list) != len(some_array):
-            if idx1 < idx2:
-                idx2 -= 1
-        # print(self.calculate_capacity_sum(some_array[idx2]) <= capacity)
-        if self.calculate_capacity_sum(some_array[idx2]) <= capacity:
-            return True
-        return False
+def shift_value(array_list, idx1, idx2, idx_of_idx1):
+    item = array_list[idx1][idx_of_idx1]
+    array_list[idx1].remove(item)
+    array_list[idx2].append(item)
+    if len(array_list[idx1]) == 0:
+        del array_list[idx1]
+    return array_list
 
-    def move_value(self, array_list, capacity):
-        can_swap = False
-        tries = 0
-        while can_swap is False:
-            rand_idx = self.generator.get_random_index(array_list)
-            random_list_idx = self.generator.get_random_index(array_list[rand_idx])
-            rand_idx2 = self.generator.get_random_index(array_list)
-            while rand_idx2 == rand_idx:
-                rand_idx2 = self.generator.get_random_index(array_list)
-            can_swap = self.is_addable(array_list, rand_idx, rand_idx2, random_list_idx, capacity)
-            if can_swap:
-                array_list = self.shift_value(array_list.copy(), rand_idx, rand_idx2, random_list_idx)
-            if not can_swap:
-                tries += 1
-            if tries == 3:
-                break
-        return array_list
 
-    def kind_of_change(self, array_list, capacity):
-        if random.randint(0, 1) == 1:
-            return self.change_values(array_list, capacity)
-        else:
-            return self.move_value(array_list, capacity)
+def change_or_false(array_list, idx1, idx2, idx_of_idx1, capacity):
+    array = copy.deepcopy(array_list)
+    move_arr = shift_value(array, idx1, idx2, idx_of_idx1)
+    if len(array_list) != len(move_arr):
+        idx2 = change_index(idx1, idx2)
+    if calculate_capacity_sum(move_arr[idx2]) <= capacity:
+        return move_arr
+    return False
 
-    def get_changed_route(self, array_list, capacity):
-        changes_value = self.how_many_changes(array_list)
-        for i in range(0, changes_value):
-            array_list = self.kind_of_change(array_list, capacity)
-            # array_list = self.change_values(array_list, capacity)
-        return array_list
+
+def move_part(array_list, idx1, idx2, idx_of_idx, capacity, cap_of_arr_no_2):
+    array = copy.deepcopy(array_list)
+    total_amount_to_add = capacity - cap_of_arr_no_2
+    last_idx = len(array[idx1][idx_of_idx]) - 1
+    if array[idx1][idx_of_idx][last_idx] > total_amount_to_add != 0:
+        amount_left = array[idx1][idx_of_idx][last_idx] - total_amount_to_add
+        if amount_left == 0:
+            return False
+        array[idx1][idx_of_idx][last_idx] = amount_left
+        array[idx2].append([array[idx1][idx_of_idx][0], total_amount_to_add])
+        return array
+    return change_or_false(array_list, idx1, idx2, idx_of_idx, capacity)
+
+
+def new_single_path(array_list, capacity):
+    tries = 0
+    while tries <= 2:
+        idx1_idx_2 = get_random_arr_indexes(array_list)
+        if can_be_swapped(array_list[idx1_idx_2[0]], array_list[idx1_idx_2[1]], capacity):
+            if cap1 < capacity:
+                idx_of_idx1 = random_generator.get_random_index(array_list[idx1_idx_2[0]])
+                change_arr_or_false = move_part(array_list, idx1_idx_2[0], idx1_idx_2[1], idx_of_idx1,
+                                                capacity, cap2)
+            elif cap2 < capacity:
+                idx_of_idx2 = random_generator.get_random_index(array_list[idx1_idx_2[1]])
+                change_arr_or_false = move_part(array_list, idx1_idx_2[1], idx1_idx_2[0], idx_of_idx2, capacity, cap1)
+            else:
+                change_arr_or_false = False
+            if change_arr_or_false:
+                return change_arr_or_false
+        tries += 1
+    return array_list
+
+
+def swap_arr_values(arr, idx1, idx2, idx_lst_1, idx_lst_2):
+    arr[idx1][idx_lst_1], arr[idx2][idx_lst_2] = arr[idx2][idx_lst_2], arr[idx1][idx_lst_1]
+    return arr
+
+
+def switch_or_false(arr, idx1, idx2, idx_lst_1, idx_lst_2, capacity):
+    arr_cp = copy.deepcopy(arr)
+    swap_arr = swap_arr_values(arr_cp, idx1, idx2, idx_lst_1, idx_lst_2)
+    if calculate_capacity_sum(swap_arr[idx1]) <= capacity:
+        if calculate_capacity_sum(swap_arr[idx2]) <= capacity:
+            return swap_arr
+    return False
+
+
+def get_random_arr_indexes(array_list):
+    rand_idx = random_generator.get_random_index(array_list)
+    rand_idx2 = random_generator.get_random_index(array_list)
+    while rand_idx2 == rand_idx:
+        rand_idx2 = random_generator.get_random_index(array_list)
+    return rand_idx, rand_idx2
+
+
+def change_values(array_list, capacity):
+    tries = 0
+    while tries <= 2:
+        idx1_idx_2 = get_random_arr_indexes(array_list)
+        idx_of_idx1 = random_generator.get_random_index(array_list[idx1_idx_2[0]])
+        idx_of_idx2 = random_generator.get_random_index(array_list[idx1_idx_2[1]])
+        switch_arr_or_false = switch_or_false(array_list, idx1_idx_2[0], idx1_idx_2[1], idx_of_idx1, idx_of_idx2,
+                                              capacity)
+        if switch_arr_or_false:
+            return switch_arr_or_false
+        tries += 1
+    return array_list
+
+
+def how_many_changes(array):
+    arr_len = 0
+    for elements in array:
+        arr_len += len(elements)
+    return math.ceil(0.1 * arr_len)
+
+
+def get_changed_route(array_list, capacity):
+    changes_value = how_many_changes(array_list)
+    for i in range(0, changes_value):
+        array_list = new_single_path(array_list, capacity)
+    return array_list
