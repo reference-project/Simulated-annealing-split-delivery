@@ -7,9 +7,12 @@ temperature = 0
 capacity = 12
 route_distance = 0
 
+sol_dist_arr = []
+init_arr = []
+
 
 def get_data():
-    return data_manager.read_data_set("../coordinates.csv", ";")
+    return data_manager.read_data_set("../random_coordinates.csv", ";")
 
 
 def set_starting_temperature(random_solutions):
@@ -34,6 +37,7 @@ def annealing(init_solution):
 
 
 def annealing_init(capacity_split):
+    best_of_random = -1
     random_solutions = random_generator.sd_random_solutions(list_arr=capacity_split, capacity=capacity,
                                                             solutions_no=100)
     random_solutions_no_cap = data_manager.get_column_from_4d(random_solutions.copy(), 0)
@@ -47,7 +51,19 @@ def annealing_init(capacity_split):
             init_temp *= 0.99
         if greedy.get_greedy_distance_whole(starting_solution) < greedy.get_greedy_distance_whole(best_solution):
             best_solution = starting_solution[:]
+            best_of_random = i
+    output(random_solutions[best_of_random], "initial distance")
     return best_solution
+
+
+def output(solution, message):
+    global init_arr
+    annealing_result = get_annealing_route(solution)
+    print(annealing_result)
+    print(message, route_distance)
+    init_arr.append(route_distance)
+    from plot import draw_plot
+    draw_plot.draw_plot(annealing_result)
 
 
 def single_annealing_route(data_with_cap):
@@ -57,6 +73,7 @@ def single_annealing_route(data_with_cap):
 
 def get_annealing_route(data_with_cap):
     global route_distance
+    route_distance = 0
     route = []
     for element in data_with_cap:
         route_arr = single_annealing_route(element)
@@ -66,16 +83,33 @@ def get_annealing_route(data_with_cap):
     return route
 
 
+def random_solutions():
+    global init_arr, sol_dist_arr
+    import random
+    for i in range(0, 10):
+        points_no = random.randint(2, 75)
+        arr = []
+        for i in range(0, points_no):
+            x = random.randint(1, 70)
+            y = random.randint(1, 70)
+            capacity_init = random.randint(1, 12)
+            arr.append([x, y, capacity_init])
+        data_manager.write_data("../random_coordinates", arr)
+        main()
+        sol_dist_arr.append(init_arr)
+        init_arr = []
+
+    for element in sol_dist_arr:
+        print(element[0], element[1])
+
+
 def main():
     coordinates_pack = get_data()
     capacity_split = data_manager.last_value_split(coordinates_pack)
     solution = annealing_init(capacity_split)
-    annealing_result = get_annealing_route(solution)
-    print(annealing_result)
-    print("distance: ", route_distance)
-    from plot import draw_plot
-    draw_plot.draw_plot(annealing_result)
+    output(solution, "solution distance")
+
 
 
 if __name__ == '__main__':
-    main()
+    random_solutions()

@@ -6,6 +6,21 @@ def read_data_set(input_file, delimiter):
         retrieved_data.extend([[int(x) for x in spl]])
     return retrieved_data
 
+def write_data(name, input_data):
+    print(name)
+    f = open(str(name) + ".csv", "w")
+    for i in range(len(input_data)):
+        space = ";"
+        for j in range(0, len(input_data[i])):
+            if j == len(input_data[i]) - 1:
+                space = "\n"
+            else:
+                input_data[i][j] = input_data[i][j]
+            if i == 0:
+                input_data[i][j] = input_data[i][j]
+            f.write(str(input_data[i][j]) + space)
+    f.close()
+
 
 def last_value_split(arr_list):
     new_arr_list = []
